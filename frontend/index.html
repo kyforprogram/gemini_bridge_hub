@@ -1,37 +1,79 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>Gemini 翻訳</title></head>
+<head>
+  <meta charset="UTF-8">
+  <title>Gemini 翻訳</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    label { display: block; margin: 8px 0; }
+    #status { margin-top: 12px; font-weight: bold; }
+  </style>
+</head>
 <body>
   <h1>Gemini 翻訳</h1>
   <form id="form">
-    <label>API Key: <input type="text" name="api_key" required></label><br>
-    <label>RPM: <input type="number" name="rpm" value="15"></label><br>
-    <label>Chunk Size: <input type="number" name="chunk" value="50"></label><br>
-    <label>Model: <input type="text" name="model" value="gemini-2.0-flash"></label><br>
-    <label><input type="checkbox" name="verbose_prompt"> Verbose Prompt</label><br>
-    <label><input type="checkbox" name="verbose_resp"> Verbose Response</label><br>
-    <label><input type="checkbox" name="verbose_write"> Verbose Write</label><br>
-    <label>File: <input type="file" name="file" accept=".xlsx" required></label><br>
+    <label>API Key: <input type="text" name="api_key" required></label>
+    <label>RPM: <input type="number" name="rpm" value="15"></label>
+    <label>Chunk Size: <input type="number" name="chunk" value="50"></label>
+    <label>Model: <input type="text" name="model" value="gemini-2.0-flash"></label>
+    <label><input type="checkbox" name="verbose_prompt"> Verbose Prompt</label>
+    <label><input type="checkbox" name="verbose_resp"> Verbose Response</label>
+    <label><input type="checkbox" name="verbose_write"> Verbose Write</label>
+    <label>File: <input type="file" name="file" accept=".xlsx" required></label>
     <button type="submit">翻訳開始</button>
   </form>
   <div id="status"></div>
+
   <script>
-    const f = document.getElementById('form'), status = document.getElementById('status');
-    f.addEventListener('submit', async e => {
+    const form = document.getElementById('form'),
+          status = document.getElementById('status');
+
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      const data = new FormData(f);
-      const res = await fetch('/api/translate',{method:'POST',body:data});
-      const j = await res.json(), id = j.job_id;
-      status.textContent='処理中';
-      const iv = setInterval(async()=>{
-        const s = await (await fetch(`/api/status/${id}`)).json();
-        if(s.status==='SUCCESS'){
+      status.textContent = '処理中…';
+      const data = new FormData(form);
+
+      // ジョブ登録
+      const res = await fetch('/api/translate', { method:'POST', body:data });
+      if (!res.ok) {
+        status.textContent = 'リクエストに失敗しました';
+        return;
+      }
+      const { job_id } = await res.json();
+
+      // ポーリング開始
+      let count = 0, MAX = 180;  // 180回(約6分)でタイムアウト
+      const iv = setInterval(async () => {
+        if (++count > MAX) {
           clearInterval(iv);
-          const a=document.createElement('a');
-          a.href=`/api/result/${id}`; a.textContent='ダウンロード';
-          status.textContent='完了: '; status.append(a);
+          status.textContent = '処理がタイムアウトしました';
+          return;
         }
-      },2000);
+        let s;
+        try {
+          const r = await fetch(`/api/status/${job_id}`);
+          s = await r.json();
+        } catch {
+          clearInterval(iv);
+          status.textContent = 'サーバーと通信できません';
+          return;
+        }
+
+        if (s.status === 'SUCCESS') {
+          clearInterval(iv);
+          const a = document.createElement('a');
+          a.href = `/api/result/${job_id}`;
+          a.textContent = 'ダウンロード';
+          status.textContent = '完了：';
+          status.append(a);
+        }
+        else if (s.status === 'FAILURE') {
+          clearInterval(iv);
+          status.textContent = '処理中にエラーが発生しました';
+          console.error('Translation failed:', s.error);
+        }
+        // PENDING or STARTED の場合は待機し続ける
+      }, 2000);
     });
   </script>
 </body>
