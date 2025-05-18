@@ -1,3 +1,4 @@
+# backend/python_to_translation.py
 import os, time, json, logging
 import pandas as pd
 from google import genai
@@ -38,10 +39,11 @@ def run_translation(
             try:
                 resp = chat.send_message(prompt)
                 return resp.text
-            except (ServerError, HTTPError):
+            except (ServerError, HTTPError) as e:
                 if attempt < max_retry:
                     time.sleep(backoff_base * 2**(attempt-1))
                 else:
+                    # 最終リトライでも取れなかったら空配列文字列を返す
                     return '[]'
 
     texts = df[src_col].astype(str).tolist()
@@ -49,15 +51,22 @@ def run_translation(
     interval = 60.0 / rpm
     row = 0
     for batch in batches:
-        prompt_eng = make_prompt(batch, 'eng')
-        prompt_kid = make_prompt(batch, 'kid')
-        if verbose_prompt: logging.info(prompt_eng[:200])
-        res_eng = json.loads(query_gemini(chat_eng, prompt_eng))
-        res_kid = json.loads(query_gemini(chat_kid, prompt_kid))
+        raw_eng = query_gemini(chat_eng, make_prompt(batch, 'eng'))
+        raw_kid = query_gemini(chat_kid, make_prompt(batch, 'kid'))
+
+        # JSON パース時の例外はここでキャッチして明示的に例外を投げる
+        try:
+            res_eng = json.loads(raw_eng)
+            res_kid = json.loads(raw_kid)
+        except json.JSONDecodeError as e:
+            logging.error("Invalid JSON from Gemini: %r / %r", raw_eng, raw_kid)
+            raise RuntimeError(f"Gemini returned invalid JSON on batch starting at row {row}") from e
+
         for i in range(len(batch)):
             df.at[row+i, eng_col] = res_eng[i].get('eng','')
             df.at[row+i, kid_col] = res_kid[i].get('kid','')
-            if verbose_write: logging.info(f"row {row+i}")
+            if verbose_write:
+                logging.info(f"row {row+i} written")
         row += len(batch)
         time.sleep(interval)
 
