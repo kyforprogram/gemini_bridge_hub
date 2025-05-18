@@ -1,0 +1,8 @@
+Flask
+celery
+redis
+pandas
+openpyxl
+google-genai
+httpx
+

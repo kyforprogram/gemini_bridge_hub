@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>Gemini 翻訳</title></head>
+<body>
+  <h1>Gemini 翻訳</h1>
+  <form id="form">
+    <label>API Key: <input type="text" name="api_key" required></label><br>
+    <label>RPM: <input type="number" name="rpm" value="15"></label><br>
+    <label>Chunk Size: <input type="number" name="chunk" value="50"></label><br>
+    <label>Model: <input type="text" name="model" value="gemini-2.0-flash"></label><br>
+    <label><input type="checkbox" name="verbose_prompt"> Verbose Prompt</label><br>
+    <label><input type="checkbox" name="verbose_resp"> Verbose Response</label><br>
+    <label><input type="checkbox" name="verbose_write"> Verbose Write</label><br>
+    <label>File: <input type="file" name="file" accept=".xlsx" required></label><br>
+    <button type="submit">翻訳開始</button>
+  </form>
+  <div id="status"></div>
+  <script>
+    const f = document.getElementById('form'), status = document.getElementById('status');
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = new FormData(f);
+      const res = await fetch('/api/translate',{method:'POST',body:data});
+      const j = await res.json(), id = j.job_id;
+      status.textContent='処理中';
+      const iv = setInterval(async()=>{
+        const s = await (await fetch(`/api/status/${id}`)).json();
+        if(s.status==='SUCCESS'){
+          clearInterval(iv);
+          const a=document.createElement('a');
+          a.href=`/api/result/${id}`; a.textContent='ダウンロード';
+          status.textContent='完了: '; status.append(a);
+        }
+      },2000);
+    });
+  </script>
+</body>
+</html>
+
