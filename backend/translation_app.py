@@ -6,6 +6,10 @@ app = Flask(__name__)
 UPLOAD = 'uploads'
 os.makedirs(UPLOAD, exist_ok=True)
 
+@app.route('/frontend/<path:filename>')
+def frontend_static(filename):
+    return send_from_directory('frontend', filename)
+
 @app.route('/api/translate', methods=['POST'])
 def api_translate():
     f = request.files.get('file')
