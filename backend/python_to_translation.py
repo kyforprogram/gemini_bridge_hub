@@ -1,9 +1,14 @@
-# backend/python_to_translation.py
-import os, time, json, logging
+import os, time, logging
 import pandas as pd
 from google import genai
 from google.genai.errors import ServerError
 from httpx import HTTPError
+
+# ログ出力設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
 
 def run_translation(
     input_path: str,
@@ -17,8 +22,9 @@ def run_translation(
     verbose_resp: bool = False,
     verbose_write: bool = False
 ) -> str:
-    logging.basicConfig(level=logging.INFO)
+    # Excel読み込み
     df = pd.read_excel(input_path)
+    # 「英語」を含むカラムを探す
     src_col = next(c for c in df.columns if '英語' in str(c))
     eng_col, kid_col = 'Gemini(エンジニア1年目)', 'Gemini(小学生)'
     df[eng_col] = ''
@@ -28,49 +34,50 @@ def run_translation(
     chat_eng = client.chats.create(model=model)
     chat_kid = client.chats.create(model=model)
 
-    def make_prompt(batch, audience):
-        joined = "\n---\n".join(batch)
+    def prompt_for(text: str, audience: str) -> str:
         if audience == 'eng':
-            return f"1年目エンジニア向けに要約してください。```{joined}```"
-        return f"小学生向けに60字以内でわかりやすく要約してください。```{joined}```"
+            return f"1年目エンジニア向けに要約してください。```{text}```"
+        return f"小学生向けに60字以内でわかりやすく要約してください。```{text}```"
 
-    def query_gemini(chat, prompt):
-        for attempt in range(1, max_retry+1):
-            try:
-                resp = chat.send_message(prompt)
-                return resp.text
-            except (ServerError, HTTPError) as e:
-                if attempt < max_retry:
-                    time.sleep(backoff_base * 2**(attempt-1))
-                else:
-                    # 最終リトライでも取れなかったら空配列文字列を返す
-                    return '[]'
-
-    texts = df[src_col].astype(str).tolist()
-    batches = [texts[i:i+chunk] for i in range(0, len(texts), chunk)]
+    # レート制御
     interval = 60.0 / rpm
-    row = 0
-    for batch in batches:
-        raw_eng = query_gemini(chat_eng, make_prompt(batch, 'eng'))
-        raw_kid = query_gemini(chat_kid, make_prompt(batch, 'kid'))
 
-        # JSON パース時の例外はここでキャッチして明示的に例外を投げる
-        try:
-            res_eng = json.loads(raw_eng)
-            res_kid = json.loads(raw_kid)
-        except json.JSONDecodeError as e:
-            logging.error("Invalid JSON from Gemini: %r / %r", raw_eng, raw_kid)
-            raise RuntimeError(f"Gemini returned invalid JSON on batch starting at row {row}") from e
+    for idx, text in enumerate(df[src_col].astype(str)):
+        # プロンプト作成
+        p_eng = prompt_for(text, 'eng')
+        p_kid = prompt_for(text, 'kid')
+        if verbose_prompt:
+            logging.info(f"[{idx}] PROMPT ENG: {p_eng}")
+            logging.info(f"[{idx}] PROMPT KID: {p_kid}")
 
-        for i in range(len(batch)):
-            df.at[row+i, eng_col] = res_eng[i].get('eng','')
-            df.at[row+i, kid_col] = res_kid[i].get('kid','')
-            if verbose_write:
-                logging.info(f"row {row+i} written")
-        row += len(batch)
+        def safe_query(chat, prompt: str) -> str:
+            for attempt in range(1, max_retry+1):
+                try:
+                    resp = chat.send_message(prompt)
+                    return resp.text
+                except (ServerError, HTTPError) as e:
+                    logging.warning(f"Attempt {attempt} failed: {e}")
+                    if attempt < max_retry:
+                        time.sleep(backoff_base * 2**(attempt-1))
+                    else:
+                        return ''
+
+        # API呼び出し
+        res_eng = safe_query(chat_eng, p_eng)
+        res_kid = safe_query(chat_kid, p_kid)
+        if verbose_resp:
+            logging.info(f"[{idx}] RESPONSE ENG: {res_eng}")
+            logging.info(f"[{idx}] RESPONSE KID: {res_kid}")
+
+        # DataFrameに書き込み
+        df.at[idx, eng_col] = res_eng
+        df.at[idx, kid_col] = res_kid
+        if verbose_write:
+            logging.info(f"[{idx}] WROTE ROW")
         time.sleep(interval)
 
-    out_path = input_path.replace('.xlsx','_translated.xlsx')
+    # 結果を別ファイルで出力
+    out_path = input_path.replace('.xlsx', '_translated.xlsx')
     df.to_excel(out_path, index=False)
     return out_path
 
