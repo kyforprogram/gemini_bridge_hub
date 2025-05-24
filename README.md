@@ -1,4 +1,9 @@
 # Gemini 翻訳 Web API
+実行前
+![image](https://github.com/user-attachments/assets/0839c952-2049-4a2c-9bd0-3a4637d406af)
+
+実行後
+![image](https://github.com/user-attachments/assets/2ed06bb3-9c86-4937-a5c4-8c08dbf3238a)
 
 
 ## 🚀 プロジェクト概要
