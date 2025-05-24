@@ -1,6 +1,5 @@
 # Gemini 翻訳 Web API
 
-![Architecture Diagram](assets/architecture.png)
 
 ## 🚀 プロジェクト概要
 
@@ -14,7 +13,6 @@
 * **メッセージブローカー**: Redis
 * **コンテナ**: Docker, Docker Compose
 * **クラウド**: AWS EC2, Security Group, IAM, SSM, Amazon Linux 2023
-* **運用・監視**: CloudWatch Logs, SSM Session Manager
 
 ## 📦 アーキテクチャ
 
@@ -29,7 +27,7 @@
   Browser UI                                            Gemini GenAI
        |                                                      |
        v                                                      |
-  File Upload                                                |
+  File Upload                                                 |
                                                               
 ```
 
@@ -98,12 +96,5 @@ gemini_bridge_hub/
 └── README.md
 ```
 
-## 🙏 貢献・運用
 
-* バグ報告や機能リクエストは GitHub Issues へ
-* CI/CD: GitHub Actions + ECR/ECS への自動デプロイ予定
-
-## 📄 ライセンス
-
-MIT © kyforprogram
 
