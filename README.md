@@ -1,17 +1,22 @@
 # Gemini 翻訳 Web API
 
-## 実行前
+## 🚀 プロジェクト概要
+
+**Gemini 翻訳 Web API** は、Google Gemini（GenAI）を利用して、Excel 内の「英語」列テキストを自動で要約・翻訳し、エンジニア 1 年目向け／小学生向け の 2 種類のサマリを生成する Web アプリケーションです。バッチ処理やレート制御、バックグラウンドタスク（Celery）を組み合わせ、大規模データも効率的に処理できます。
+
+## 実行前(Palo AltoのBUGID)
 
 ![image](https://github.com/user-attachments/assets/0839c952-2049-4a2c-9bd0-3a4637d406af)
+
+1行目の「英語」の列をGeminiに翻訳が可能です。
+2通りの翻訳結果をエクセルに転記します。
+`・エンジニア1年目`
+`・小学生`
 
 ## 実行後
 
 ![image](https://github.com/user-attachments/assets/2ed06bb3-9c86-4937-a5c4-8c08dbf3238a)
 
-
-## 🚀 プロジェクト概要
-
-**Gemini 翻訳 Web API** は、Google Gemini（GenAI）を利用して、Excel 内の「英語」列テキストを自動で要約・翻訳し、エンジニア 1 年目向け／小学生向け の 2 種類のサマリを生成する Web アプリケーションです。バッチ処理やレート制御、バックグラウンドタスク（Celery）を組み合わせ、大規模データも効率的に処理できます。
 
 ## ⚙️ 主な技術スタック
 
