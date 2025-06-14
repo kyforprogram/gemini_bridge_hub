@@ -13,7 +13,7 @@ logging.basicConfig(
 def run_translation(
     input_path: str,
     api_key: str,
-    rpm: int = 15,
+    rpm: int = 7,
     chunk: int = 50,
     model: str = "gemini-2.0-flash",
     max_retry: int = 7,
