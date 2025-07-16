@@ -3,6 +3,7 @@ from flask import (
     Flask, request, jsonify,
     send_file, send_from_directory, redirect
 )
+from werkzeug.utils import secure_filename
 from tasks import translate_task
 import os, json
 
@@ -27,7 +28,8 @@ def api_translate():
     if not f or 'api_key' not in params:
         return jsonify(error='file and api_key required'), 400
 
-    path = os.path.join(UPLOAD, f.filename)
+    filename = secure_filename(f.filename)
+    path = os.path.join(UPLOAD, filename)
     f.save(path)
     # 型変換
     for k in ['rpm','chunk','max_retry','backoff_base']:
